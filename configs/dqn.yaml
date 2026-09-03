@@ -1,0 +1,16 @@
+# BASELINE -- stock Stable-Baselines3 DQN, unmodified library code.
+#
+# Target:  y = r + gamma * max_a' Q_target(s', a')
+#
+# Inherits every hyperparameter from base.yaml. The ONLY difference from
+# ddqn.yaml is the `name` field below.
+
+inherits: base.yaml
+
+run:
+  name: dqn
+  algorithm: dqn
+  description: >
+    Baseline. Stable-Baselines3 DQN with no modification. The bootstrap target
+    uses a single max over the target network, which is the source of the
+    maximisation bias that Double DQN addresses.

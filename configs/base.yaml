@@ -1,0 +1,91 @@
+# =============================================================================
+# Shared configuration. dqn.yaml and ddqn.yaml inherit from this file and change
+# ONLY the `algorithm` field.
+#
+# This is deliberate. The brief warns that "a different configuration per seed
+# invalidates the comparison" -- the same logic applies across algorithms. If the
+# baseline and the treatment differed in any hyperparameter, a performance gap
+# could be blamed on that instead of on the Double-DQN target.
+#
+# The `default:` comments record Stable-Baselines3' own defaults, so the
+# hyperparameter table required by section 5 of the brief can be generated
+# directly from this file and cannot silently drift from the code.
+# =============================================================================
+
+experiment:
+  seeds: [0, 1, 2]          # training seeds -- RECORDED, as the brief requires
+  total_timesteps: 60000    # 60k steps ~ 1500 episodes of 40 steps.
+                            # MEASURED: ~16 env steps/sec on CPU, so ~60 min per
+                            # run, ~6 h for the full 2 algorithms x 3 seeds.
+                            # See the compute note under `env.vehicles_count`.
+  eval_episodes: 50         # evaluation episodes per trained policy
+  eval_seed_base: 1000      # eval seeds 1000..1049; disjoint from training seeds
+  probe_states: 512         # states for the Q-value overestimation probe
+  probe_seed: 12345
+  log_interval: 10
+  results_dir: results
+
+# --- Environment: Section 1, 2 and 4 of docs/01_mdp_formulation.md ------------
+env:
+  env_id: highway-v0
+  lanes_count: 4            # default: 4
+  vehicles_count: 20        # DIFFERS -- default 50. MEASURED COMPUTE DECISION:
+                            #   50 vehicles ->  3.7 env steps/sec  (7.5 h/run)
+                            #   20 vehicles -> 16.2 env steps/sec  (1.0 h/run)
+                            # The simulator advances every vehicle's IDM model 15
+                            # times per agent step, so cost is linear in vehicle
+                            # count. 50 vehicles makes a 3-seed comparison
+                            # infeasible on CPU; 20 does not.
+  vehicles_density: 1.3     # DIFFERS -- default 1.0. Raised to compensate: fewer
+                            # vehicles overall, but packed closer together, so the
+                            # traffic the ego actually interacts with stays dense.
+                            # This preserves the difficulty of the task while
+                            # cutting simulation cost.
+  duration: 40              # default: 40   (steps; 1 step == 1 second)
+  observed_vehicles: 5      # default: 5
+  frame_stack: 4            # OURS -- highway-env has no frame stacking
+  policy_frequency: 1       # default: 1 Hz
+  simulation_frequency: 15  # default: 15 Hz
+  offroad_terminal: true    # DIFFERS -- default false; we treat off-road as terminal
+
+# --- Reward: Section 3 of docs/01_mdp_formulation.md --------------------------
+# Entirely ours. highway-env's built-in reward terms are zeroed in make_env.py.
+reward:
+  target_speed_min: 20.0    # m/s -- zero speed reward below this
+  target_speed_max: 30.0    # m/s -- full speed reward at/above this
+  safe_time_headway: 1.5    # seconds
+  w_speed: 1.0
+  w_headway: 0.4
+  w_lane_change: 0.1
+  w_invalid_action: 0.2
+  w_collision: 10.0
+  w_offroad: 10.0
+
+# --- Algorithm hyperparameters ------------------------------------------------
+# Every entry annotated with the Stable-Baselines3 default so deviations are
+# explicit and auditable.
+algorithm:
+  policy: MlpPolicy
+  learning_rate: 0.0005         # default: 0.0001  -- raised; short 100k budget
+  buffer_size: 50000            # default: 1000000 -- 20x smaller; fits in RAM and
+                                #                     matches our step budget
+  learning_starts: 1000         # default: 100     -- fill the buffer before learning
+  batch_size: 64                # default: 32      -- steadier gradients on CPU
+  tau: 1.0                      # default: 1.0     -- hard target update (unchanged)
+  gamma: 0.95                   # default: 0.99    -- JUSTIFIED in formulation Sec. 5
+  train_freq: 1                 # default: 4       -- more updates per env step,
+                                #                     because env steps are the
+                                #                     expensive part here
+  gradient_steps: 1             # default: 1
+  target_update_interval: 500   # default: 10000   -- scaled to the 100k budget
+  exploration_fraction: 0.3     # default: 0.1     -- driving needs longer
+                                #                     exploration to see crashes
+  exploration_initial_eps: 1.0  # default: 1.0
+  exploration_final_eps: 0.05   # default: 0.05
+  max_grad_norm: 10             # default: 10      -- matters: our reward is
+                                #                     unnormalised, so gradients
+                                #                     can spike on a -10 collision
+  policy_kwargs:
+    net_arch: [256, 256]        # default: [64, 64] -- 96-dim input needs capacity
+  verbose: 0
+  device: auto

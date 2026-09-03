@@ -1,0 +1,20 @@
+# TREATMENT -- Double DQN.
+#
+# Target:  a* = argmax_a' Q_online(s', a')        <- online net SELECTS
+#          y  = r + gamma * Q_target(s', a*)      <- target net EVALUATES
+#
+# Implemented in agents/double_dqn.py as a subclass of the baseline that
+# overrides `train()` and nothing else.
+#
+# Inherits every hyperparameter from base.yaml. The ONLY difference from
+# dqn.yaml is the `name` field below. This is what makes the comparison valid.
+
+inherits: base.yaml
+
+run:
+  name: ddqn
+  algorithm: ddqn
+  description: >
+    Treatment. Decouples action SELECTION from action EVALUATION in the bootstrap
+    target, which decorrelates the noise entering the max and is expected to
+    reduce over-estimation of action values.

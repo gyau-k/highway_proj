@@ -1,0 +1,10 @@
+__pycache__/
+*.pyc
+.venv/
+venv/
+.DS_Store
+.ipynb_checkpoints/
+
+# Throwaway smoke-test output. The real experiment writes to results/, which IS
+# committed -- the brief requires the raw logs behind every figure to be in the repo.
+results_smoke/
